@@ -2,23 +2,7 @@
 A deep learning model using LSTM to classify sentiments from text as positive, negative, or neutral.
 
 
-SentimentAnalysisWeb/
-│
-├── static/
-│   ├── ai-bg.jpg
-│   ├── script.js
-│   └── style.css
-│
-├── templates/
-│   ├── base.html
-│   ├── index.html
-│   ├── home.html
-│   ├── analyzer.html
-│   ├── analyze.html
-│   ├── analytics.html
-│   ├── history.html
-│   └── result.html
-│
-├── app.py
-├── train_model.py
-└── sentiment_model.h5
+project structure
+
+<img width="390" height="582" alt="image" src="https://github.com/user-attachments/assets/e46313e3-2d03-4bc4-8316-7686c1320fa5" />
+
