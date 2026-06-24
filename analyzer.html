@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sentiment Analyzer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+        width:100%; height:100%;
+        overflow:hidden;
+        font-family:'Inter', sans-serif;
+        background:#050c18;
+        color:#fff;
+    }
+
+    /* NEURAL BG */
+    #neuralCanvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+    /* NAVBAR */
+    .navbar {
+        position:fixed; top:0; left:0; right:0; height:64px; z-index:100;
+        display:flex; align-items:center; justify-content:space-between;
+        padding:0 48px;
+        background:rgba(5,12,24,0.92);
+        backdrop-filter:blur(20px);
+        border-bottom:1px solid rgba(0,234,255,0.1);
+    }
+    .logo {
+        font-family:'Bebas Neue', sans-serif; font-size:26px;
+        letter-spacing:5px; color:#00eaff;
+        text-shadow:0 0 20px rgba(0,234,255,0.45);
+    }
+    .nav-links { display:flex; align-items:center; gap:36px; }
+    .nav-links a {
+        text-decoration:none; font-size:12px; font-weight:600;
+        letter-spacing:2.5px; text-transform:uppercase;
+        color:rgba(255,255,255,0.4); transition:color 0.2s;
+    }
+    .nav-links a:hover { color:rgba(255,255,255,0.8); }
+    .nav-links a.active { color:#00eaff; position:relative; }
+    .nav-links a.active::after {
+        content:''; position:absolute; bottom:-22px; left:0; right:0;
+        height:2px; background:#00eaff; box-shadow:0 0 8px #00eaff;
+    }
+
+    /* SCREEN */
+    .screen {
+        position:fixed; top:64px; bottom:0; left:0; right:0;
+        display:grid; grid-template-columns:1fr 1fr; z-index:10;
+    }
+
+    /* LEFT PANEL */
+    .left-panel {
+        display:flex; flex-direction:column; justify-content:center;
+        padding:48px 56px;
+        background:rgba(0,0,0,0.3);
+        border-right:1px solid rgba(0,234,255,0.07);
+    }
+
+    .section-tag {
+        display:inline-flex; align-items:center; gap:8px;
+        font-size:11px; font-weight:600; letter-spacing:3px;
+        text-transform:uppercase; color:#00eaff; opacity:0.65;
+        margin-bottom:16px;
+    }
+
+    .panel-title {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:64px; line-height:0.95; letter-spacing:2px;
+        color:#fff; margin-bottom:32px;
+    }
+    .panel-title .accent { color:#00eaff; }
+
+    .field-label {
+        font-size:12px; font-weight:600; letter-spacing:2px;
+        text-transform:uppercase; color:rgba(255,255,255,0.35);
+        margin-bottom:10px;
+    }
+
+    /* Textarea wrapper — for mic button overlay */
+    .textarea-wrap { position:relative; width:100%; }
+
+    textarea {
+        width:100%; height:200px;
+        background:rgba(255,255,255,0.05);
+        border:1.5px solid rgba(0,234,255,0.18);
+        border-radius:12px;
+        padding:20px 22px 20px 22px;
+        font-family:'Inter', sans-serif;
+        font-size:20px; font-weight:400; line-height:1.65;
+        color:rgba(255,255,255,0.9);
+        resize:none; outline:none;
+        transition:border-color 0.25s, box-shadow 0.25s, background 0.25s;
+        caret-color:#00eaff;
+    }
+    textarea:focus {
+        border-color:rgba(0,234,255,0.45);
+        background:rgba(255,255,255,0.07);
+        box-shadow:0 0 0 4px rgba(0,234,255,0.06), 0 0 24px rgba(0,234,255,0.08);
+    }
+    textarea::placeholder { color:rgba(255,255,255,0.18); font-size:18px; }
+
+    /* =============================================
+       VOICE ASSISTANT STYLES
+    ============================================= */
+
+    /* Row: char count + mic button */
+    .textarea-footer {
+        display:flex; align-items:center;
+        justify-content:space-between;
+        margin-top:8px; margin-bottom:20px;
+    }
+    .char-count {
+        font-size:11px; color:rgba(255,255,255,0.25); letter-spacing:1px;
+    }
+
+    /* Mic button */
+    .btn-mic {
+        display:inline-flex; align-items:center; gap:8px;
+        padding:10px 20px;
+        background:rgba(0,234,255,0.08);
+        border:1.5px solid rgba(0,234,255,0.25);
+        border-radius:50px;
+        font-family:'Inter', sans-serif;
+        font-size:13px; font-weight:600;
+        letter-spacing:1px; color:#00eaff;
+        cursor:pointer;
+        transition:all 0.25s;
+        outline:none;
+    }
+    .btn-mic:hover {
+        background:rgba(0,234,255,0.15);
+        border-color:rgba(0,234,255,0.5);
+        box-shadow:0 0 18px rgba(0,234,255,0.2);
+    }
+
+    /* Mic icon — animated ring when listening */
+    .mic-icon {
+        width:18px; height:18px;
+        position:relative; display:flex;
+        align-items:center; justify-content:center;
+        flex-shrink:0;
+    }
+    .mic-icon svg { width:16px; height:16px; }
+
+    /* Pulse ring when recording */
+    .btn-mic.listening {
+        background:rgba(255,77,77,0.15);
+        border-color:rgba(255,77,77,0.6);
+        color:#ff4d4d;
+        animation:micPulse 1s ease-in-out infinite;
+    }
+    @keyframes micPulse {
+        0%,100% { box-shadow:0 0 0 0 rgba(255,77,77,0.4); }
+        50%      { box-shadow:0 0 0 8px rgba(255,77,77,0); }
+    }
+
+    /* Voice status bar */
+    .voice-status {
+        display:none;
+        align-items:center; gap:10px;
+        padding:10px 16px;
+        background:rgba(0,234,255,0.06);
+        border:1px solid rgba(0,234,255,0.15);
+        border-radius:8px;
+        margin-bottom:20px;
+        font-size:13px; color:rgba(255,255,255,0.6);
+        letter-spacing:0.5px;
+    }
+    .voice-status.show { display:flex; }
+    .voice-status .dot {
+        width:8px; height:8px; border-radius:50%;
+        background:#00eaff; flex-shrink:0;
+        animation:blink 0.8s ease-in-out infinite;
+    }
+    .voice-status .dot.red { background:#ff4d4d; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* Waveform bars (shown while listening) */
+    .waveform {
+        display:none; align-items:flex-end; gap:3px;
+        height:20px; flex-shrink:0;
+    }
+    .waveform.show { display:flex; }
+    .waveform span {
+        width:3px; background:#ff4d4d; border-radius:2px;
+        animation:wave 0.5s ease-in-out infinite alternate;
+    }
+    .waveform span:nth-child(1){ height:6px;  animation-delay:0s;    }
+    .waveform span:nth-child(2){ height:14px; animation-delay:0.1s;  }
+    .waveform span:nth-child(3){ height:20px; animation-delay:0.2s;  }
+    .waveform span:nth-child(4){ height:12px; animation-delay:0.15s; }
+    .waveform span:nth-child(5){ height:8px;  animation-delay:0.05s; }
+    @keyframes wave { from{transform:scaleY(0.4)} to{transform:scaleY(1)} }
+
+    /* Submit button */
+    .btn-row { display:flex; align-items:center; gap:16px; }
+
+    .btn-analyze {
+        display:inline-flex; align-items:center; gap:10px;
+        padding:15px 40px;
+        background:#00eaff; border:none; border-radius:50px;
+        font-family:'Bebas Neue', sans-serif;
+        font-size:20px; letter-spacing:3px;
+        color:#050c18; cursor:pointer;
+        transition:transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-analyze:hover {
+        transform:translateY(-2px) scale(1.03);
+        box-shadow:0 6px 30px rgba(0,234,255,0.45);
+    }
+    .btn-analyze:active { transform:scale(0.98); }
+
+    /* Speak result button (shown after analysis) */
+    .btn-speak {
+        display:none;
+        align-items:center; gap:8px;
+        padding:12px 22px;
+        background:rgba(255,255,255,0.06);
+        border:1.5px solid rgba(255,255,255,0.15);
+        border-radius:50px;
+        font-family:'Inter', sans-serif;
+        font-size:13px; font-weight:600;
+        color:rgba(255,255,255,0.6);
+        cursor:pointer;
+        transition:all 0.2s;
+        outline:none;
+    }
+    .btn-speak.visible { display:inline-flex; }
+    .btn-speak:hover {
+        background:rgba(255,255,255,0.1);
+        border-color:rgba(255,255,255,0.3);
+        color:#fff;
+    }
+    .btn-speak.speaking {
+        border-color:rgba(0,234,255,0.5);
+        color:#00eaff;
+        background:rgba(0,234,255,0.08);
+    }
+
+    /* RIGHT PANEL */
+    .right-panel {
+        display:flex; flex-direction:column;
+        justify-content:center; align-items:center;
+        padding:40px 56px; gap:0;
+    }
+
+    .idle-state {
+        display:flex; flex-direction:column;
+        align-items:center; gap:16px;
+        opacity:0.15; user-select:none;
+    }
+    .idle-icon { font-size:96px; line-height:1; }
+    .idle-text {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:24px; letter-spacing:5px; color:#00eaff;
+    }
+
+    .result-state {
+        display:flex; flex-direction:column;
+        align-items:center; width:100%; gap:0;
+        animation:riseIn 0.55s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes riseIn {
+        from { opacity:0; transform:translateY(28px) scale(0.97); }
+        to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+
+    .result-emoji {
+        font-size:72px; line-height:1; margin-bottom:10px;
+        animation:emojiPop 0.5s cubic-bezier(0.175,0.885,0.32,1.6) both;
+    }
+    @keyframes emojiPop {
+        from { transform:scale(0) rotate(-20deg); opacity:0; }
+        to   { transform:scale(1) rotate(0deg);   opacity:1; }
+    }
+
+    .result-word {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:88px; letter-spacing:6px; line-height:1; margin-bottom:10px;
+    }
+    .result-word.pos { color:#00ff9c; text-shadow:0 0 40px rgba(0,255,156,0.5); }
+    .result-word.neg { color:#ff4d4d; text-shadow:0 0 40px rgba(255,77,77,0.5); }
+    .result-word.neu { color:#ffd93b; text-shadow:0 0 40px rgba(255,217,59,0.5); }
+
+    .conf-pill {
+        display:inline-flex; align-items:center; gap:10px;
+        padding:8px 22px;
+        background:rgba(255,255,255,0.06);
+        border:1px solid rgba(255,255,255,0.1);
+        border-radius:50px; margin-bottom:28px;
+    }
+    .conf-pill .label {
+        font-size:12px; font-weight:600; letter-spacing:2px;
+        text-transform:uppercase; color:rgba(255,255,255,0.4);
+    }
+    .conf-pill .value {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:28px; color:#00eaff; letter-spacing:2px;
+    }
+
+    .result-divider {
+        width:100%; height:1px;
+        background:linear-gradient(to right, transparent, rgba(0,234,255,0.15), transparent);
+        margin-bottom:28px;
+    }
+
+    .charts-row {
+        display:flex; align-items:flex-end;
+        justify-content:center; gap:44px; width:100%;
+    }
+    .chart-block {
+        display:flex; flex-direction:column;
+        align-items:center; gap:10px;
+    }
+    .chart-label {
+        font-size:11px; font-weight:600; letter-spacing:2.5px;
+        text-transform:uppercase; color:rgba(255,255,255,0.3);
+    }
+
+    </style>
+</head>
+<body>
+
+<canvas id="neuralCanvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="logo">SentimentAI</div>
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyzer" class="active">Analyzer</a>
+        <a href="/history">History</a>
+        <a href="/analytics">Analytics</a>
+    </div>
+</nav>
+
+<div class="screen">
+
+    <!-- ========== LEFT: INPUT ========== -->
+    <div class="left-panel">
+
+        <span class="section-tag">🎬 Movie Review Analysis</span>
+
+        <h1 class="panel-title">
+            ANALYZE<br>
+            <span class="accent">SENTIMENT</span>
+        </h1>
+
+        <form action="/analyzer" method="post" style="display:flex;flex-direction:column;">
+
+            <label class="field-label">Your Review</label>
+
+            <div class="textarea-wrap">
+                <textarea
+                    id="reviewText"
+                    name="review"
+                    placeholder="Type, paste, or 🎤 speak your movie review..."
+                    oninput="document.getElementById('charCount').textContent=this.value.length+' characters'"
+                >{% if request.form.review %}{{ request.form.review }}{% endif %}</textarea>
+            </div>
+
+            <!-- Footer row: char count + mic button -->
+            <div class="textarea-footer">
+                <span class="char-count" id="charCount">0 characters</span>
+                <button type="button" class="btn-mic" id="micBtn" onclick="toggleVoice()" title="Speak your review">
+                    <span class="mic-icon">
+                        <!-- Mic SVG -->
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="9" y="2" width="6" height="12" rx="3"/>
+                            <path d="M5 10a7 7 0 0 0 14 0"/>
+                            <line x1="12" y1="19" x2="12" y2="22"/>
+                            <line x1="9"  y1="22" x2="15" y2="22"/>
+                        </svg>
+                    </span>
+                    <span id="micLabel">🎤 Speak Review</span>
+                    <span class="waveform" id="waveform">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </span>
+                </button>
+            </div>
+
+            <!-- Voice status bar -->
+            <div class="voice-status" id="voiceStatus">
+                <span class="dot" id="statusDot"></span>
+                <span id="statusText">Listening...</span>
+            </div>
+
+            <!-- Buttons row -->
+            <div class="btn-row">
+                <button type="submit" class="btn-analyze">⚡ RUN ANALYSIS</button>
+
+                {% if result %}
+                <button type="button" class="btn-speak visible" id="speakBtn" onclick="speakResult()">
+                    🔊 Read Result
+                </button>
+                {% endif %}
+            </div>
+
+        </form>
+
+    </div>
+
+    <!-- ========== RIGHT: RESULT ========== -->
+    <div class="right-panel">
+
+        {% if result %}
+
+        <div class="result-state">
+
+            <div class="result-emoji">
+                {% if result == 'Positive' %}😊
+                {% elif result == 'Negative' %}😡
+                {% else %}😐{% endif %}
+            </div>
+
+            <div class="result-word
+                {% if result == 'Positive' %}pos
+                {% elif result == 'Negative' %}neg
+                {% else %}neu{% endif %}">
+                {{ result }}
+            </div>
+
+            <div class="conf-pill">
+                <span class="label">Confidence</span>
+                <span class="value">{{ confidence }}%</span>
+            </div>
+
+            <div class="result-divider"></div>
+
+            <div class="charts-row">
+                <div class="chart-block">
+                    <canvas id="gaugeCanvas" width="300" height="165"></canvas>
+                    <span class="chart-label">Sentiment Meter</span>
+                </div>
+                <div class="chart-block">
+                    <canvas id="radialCanvas" width="200" height="200"></canvas>
+                    <span class="chart-label">Confidence Score</span>
+                </div>
+            </div>
+
+        </div>
+
+        <script>
+        const SENTIMENT  = "{{ result | e }}";
+        const CONFIDENCE = parseFloat("{{ confidence }}");
+
+        /* GAUGE */
+        const gc   = document.getElementById('gaugeCanvas');
+        const gctx = gc.getContext('2d');
+        function drawGauge(v) {
+            gctx.clearRect(0, 0, gc.width, gc.height);
+            const cx = gc.width / 2, cy = gc.height, R = 120;
+            [[Math.PI, Math.PI*1.33,'#00ff9c'],[Math.PI*1.33,Math.PI*1.66,'#ffd93b'],[Math.PI*1.66,Math.PI*2,'#ff4d4d']]
+            .forEach(([s,e,c]) => { gctx.beginPath(); gctx.arc(cx,cy,R,s,e); gctx.strokeStyle=c; gctx.lineWidth=18; gctx.stroke(); });
+            gctx.font='600 11px Inter'; gctx.fillStyle='rgba(255,255,255,0.45)'; gctx.textAlign='center';
+            gctx.fillText('POS',cx-82,cy-12); gctx.fillText('NEU',cx,cy-R-8); gctx.fillText('NEG',cx+82,cy-12);
+            let angle;
+            if(SENTIMENT==='Positive') angle=Math.PI+(v/100)*(Math.PI*0.33);
+            else if(SENTIMENT==='Neutral') angle=Math.PI*1.33+(v/100)*(Math.PI*0.33);
+            else angle=Math.PI*1.66+(v/100)*(Math.PI*0.34);
+            gctx.save(); gctx.shadowColor='#fff'; gctx.shadowBlur=10;
+            gctx.strokeStyle='#ffffff'; gctx.lineWidth=3; gctx.lineCap='round';
+            gctx.beginPath(); gctx.moveTo(cx,cy);
+            gctx.lineTo(cx+(R-16)*Math.cos(angle), cy+(R-16)*Math.sin(angle)); gctx.stroke(); gctx.restore();
+            gctx.beginPath(); gctx.arc(cx,cy,6,0,Math.PI*2); gctx.fillStyle='#fff'; gctx.fill();
+        }
+        let gv=0; (function ag(){ if(gv<CONFIDENCE){gv++;drawGauge(gv);requestAnimationFrame(ag);} else drawGauge(CONFIDENCE); })();
+
+        /* RADIAL */
+        const rc=document.getElementById('radialCanvas'), rctx=rc.getContext('2d');
+        const RR=80, rcx=rc.width/2, rcy=rc.height/2;
+        const arcColor=SENTIMENT==='Positive'?'#00ff9c':SENTIMENT==='Negative'?'#ff4d4d':'#ffd93b';
+        function drawRadial(v){
+            rctx.clearRect(0,0,rc.width,rc.height);
+            rctx.beginPath(); rctx.arc(rcx,rcy,RR,0,Math.PI*2);
+            rctx.strokeStyle='rgba(255,255,255,0.07)'; rctx.lineWidth=16; rctx.stroke();
+            rctx.beginPath(); rctx.arc(rcx,rcy,RR,-Math.PI/2,-Math.PI/2+(v/100)*Math.PI*2);
+            rctx.strokeStyle=arcColor; rctx.lineWidth=16; rctx.lineCap='round';
+            rctx.shadowColor=arcColor; rctx.shadowBlur=16; rctx.stroke(); rctx.shadowBlur=0;
+            rctx.fillStyle='#fff'; rctx.font='bold 28px Bebas Neue,sans-serif';
+            rctx.textAlign='center'; rctx.textBaseline='middle'; rctx.fillText(v+'%',rcx,rcy);
+        }
+        let rv=0; (function ar(){ if(rv<CONFIDENCE){rv++;drawRadial(rv);requestAnimationFrame(ar);} else drawRadial(CONFIDENCE); })();
+
+        /* Auto-speak result when page loads after analysis */
+        window.addEventListener('load', () => {
+            setTimeout(() => { if(typeof speakResult==='function') speakResult(); }, 800);
+        });
+        </script>
+
+        {% else %}
+
+        <div class="idle-state">
+            <div class="idle-icon">🎬</div>
+            <div class="idle-text">Awaiting Review</div>
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+<!-- ===================== VOICE ASSISTANT ===================== -->
+<script>
+// ---- State ----
+let recognition  = null;
+let isListening  = false;
+let speechSynth  = window.speechSynthesis;
+
+// ---- Elements ----
+const micBtn      = document.getElementById('micBtn');
+const micLabel    = document.getElementById('micLabel');
+const waveform    = document.getElementById('waveform');
+const voiceStatus = document.getElementById('voiceStatus');
+const statusDot   = document.getElementById('statusDot');
+const statusText  = document.getElementById('statusText');
+const reviewTA    = document.getElementById('reviewText');
+const charCount   = document.getElementById('charCount');
+
+// ---- Check browser support ----
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (!SpeechRecognition) {
+    if (micBtn) {
+        micBtn.disabled = true;
+        micBtn.title    = 'Voice input not supported in this browser. Use Chrome.';
+        micBtn.style.opacity = '0.4';
+        micLabel.textContent = '🎤 Not supported';
+    }
+}
+
+// ---- VOICE INPUT: Speak → Textarea ----
+function toggleVoice() {
+    if (!SpeechRecognition) return;
+    if (isListening) {
+        stopListening();
+    } else {
+        startListening();
+    }
+}
+
+function startListening() {
+    // Stop any ongoing speech synthesis
+    speechSynth.cancel();
+
+    recognition = new SpeechRecognition();
+    recognition.lang        = 'en-US';
+    recognition.interimResults = true;   // show words as they're spoken
+    recognition.continuous  = false;
+    recognition.maxAlternatives = 1;
+
+    let textBeforeRecording = '';
+
+    recognition.onstart = () => {
+        textBeforeRecording = reviewTA.value.trim();
+        isListening = true;
+        micBtn.classList.add('listening');
+        micLabel.textContent    = '⏹ Stop';
+        waveform.classList.add('show');
+        voiceStatus.classList.add('show');
+        statusDot.classList.remove('red');
+        statusText.textContent  = 'Listening... speak your review';
+    };
+
+    recognition.onresult = (event) => {
+        let interim = '';
+        let final   = '';
+
+        // Rebuild from scratch on every event — avoids duplicates
+        for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                final += transcript + ' ';
+            } else {
+                interim += transcript;
+            }
+        }
+
+        // Combine: existing text + newly spoken text
+        const spoken = (final + interim).trim();
+        reviewTA.value = textBeforeRecording
+            ? textBeforeRecording + ' ' + spoken
+            : spoken;
+
+        charCount.textContent = reviewTA.value.length + ' characters';
+    };
+
+    recognition.onerror = (event) => {
+        let msg = 'Error: ' + event.error;
+        if (event.error === 'no-speech')       msg = 'No speech detected. Try again.';
+        if (event.error === 'not-allowed')     msg = 'Microphone access denied.';
+        if (event.error === 'network')         msg = 'Network error. Check connection.';
+        statusDot.classList.add('red');
+        statusText.textContent = msg;
+        setTimeout(() => voiceStatus.classList.remove('show'), 3000);
+        stopListening();
+    };
+
+    recognition.onend = () => {
+        if (isListening) {
+            // Finished speaking naturally
+            stopListening();
+            if (reviewTA.value.trim()) {
+                statusDot.classList.remove('red');
+                statusText.textContent = 'Got it! Click RUN ANALYSIS to analyze.';
+                setTimeout(() => voiceStatus.classList.remove('show'), 3000);
+            }
+        }
+    };
+
+    recognition.start();
+}
+
+function stopListening() {
+    isListening = false;
+    if (recognition) {
+        try { recognition.stop(); } catch(e) {}
+        recognition = null;
+    }
+    micBtn.classList.remove('listening');
+    micLabel.textContent = '🎤 Speak Review';
+    waveform.classList.remove('show');
+}
+
+// ---- VOICE OUTPUT: Speak the result aloud ----
+function speakResult() {
+    const sentimentEl = document.querySelector('.result-word');
+    const confEl      = document.querySelector('.conf-pill .value');
+    const speakBtn    = document.getElementById('speakBtn');
+
+    if (!sentimentEl) return;
+
+    const sentiment  = sentimentEl.textContent.trim();
+    const confidence = confEl ? confEl.textContent.trim() : '';
+
+    // Build natural spoken message
+    const emoji = sentiment === 'Positive' ? 'positive'
+                : sentiment === 'Negative' ? 'negative' : 'neutral';
+
+    const message = `The sentiment analysis result is ${emoji}, with a confidence of ${confidence}.`
+                  + (sentiment === 'Positive' ? ' The review appears to be a good one!'
+                   : sentiment === 'Negative' ? ' The review appears to be critical.'
+                   : ' The review has mixed or unclear sentiment.');
+
+    // Cancel any current speech
+    speechSynth.cancel();
+
+    const utterance        = new SpeechSynthesisUtterance(message);
+    utterance.rate         = 0.95;   // slightly slower = clearer
+    utterance.pitch        = 1.0;
+    utterance.volume       = 1.0;
+    utterance.lang         = 'en-US';
+
+    // Pick a nice voice if available
+    const voices = speechSynth.getVoices();
+    const preferred = voices.find(v =>
+        v.name.includes('Google') && v.lang === 'en-US'
+    ) || voices.find(v => v.lang === 'en-US') || voices[0];
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onstart = () => {
+        if (speakBtn) speakBtn.classList.add('speaking');
+    };
+    utterance.onend = () => {
+        if (speakBtn) speakBtn.classList.remove('speaking');
+    };
+
+    speechSynth.speak(utterance);
+}
+
+// Voices load asynchronously — cache them
+if (speechSynth) {
+    speechSynth.getVoices();
+    speechSynth.onvoiceschanged = () => speechSynth.getVoices();
+}
+</script>
+
+<!-- NEURAL BG -->
+<script>
+(function(){
+    const cv=document.getElementById('neuralCanvas'), ctx=cv.getContext('2d');
+    function resize(){ cv.width=window.innerWidth; cv.height=window.innerHeight; }
+    resize(); window.addEventListener('resize', resize);
+    const pts=Array.from({length:65},()=>({
+        x:Math.random()*cv.width, y:Math.random()*cv.height,
+        vx:(Math.random()-0.5)*0.38, vy:(Math.random()-0.5)*0.38
+    }));
+    function frame(){
+        ctx.clearRect(0,0,cv.width,cv.height);
+        pts.forEach((a,i)=>{
+            a.x+=a.vx; a.y+=a.vy;
+            if(a.x<0||a.x>cv.width) a.vx*=-1;
+            if(a.y<0||a.y>cv.height) a.vy*=-1;
+            for(let j=i+1;j<pts.length;j++){
+                const b=pts[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+                if(d<130){
+                    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+                    ctx.strokeStyle=`rgba(0,234,255,${(1-d/130)*0.22})`; ctx.lineWidth=1; ctx.stroke();
+                }
+            }
+            ctx.beginPath(); ctx.arc(a.x,a.y,2,0,Math.PI*2);
+            ctx.fillStyle='rgba(0,234,255,0.55)'; ctx.fill();
+        });
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
+
+const ta=document.getElementById('reviewText');
+if(ta) document.getElementById('charCount').textContent=ta.value.length+' characters';
+</script>
+
+</body>
+</html>

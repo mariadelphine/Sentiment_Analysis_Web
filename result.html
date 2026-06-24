@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Sentiment Result</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<canvas id="network"></canvas>
+<div id="emojiContainer"></div>
+
+<nav class="navbar">
+
+<h2 class="logo">SentimentAI</h2>
+
+<ul>
+
+<li><a href="/">Home</a></li>
+<li><a href="/history">History</a></li>
+
+</ul>
+
+</nav>
+
+<section class="result-dashboard">
+
+<h1>Analysis Result</h1>
+
+<div class="result-card">
+
+<h2 id="sentiment"></h2>
+
+<h1 id="emoji"></h1>
+
+<p id="confidence"></p>
+
+<div class="progress">
+
+<div id="confidenceBar"></div>
+
+</div>
+
+</div>
+
+</section>
+
+<script>
+
+let sentiment = localStorage.getItem("sentiment")
+let confidence = localStorage.getItem("confidence")
+
+let emoji = sentiment === "Positive" ? "😊" : "😡"
+
+document.getElementById("sentiment").innerHTML = sentiment
+document.getElementById("emoji").innerHTML = emoji
+document.getElementById("confidence").innerHTML = confidence + "% confidence"
+
+document.getElementById("confidenceBar").style.width = confidence + "%"
+
+</script>
+
+<script src="/static/script.js"></script>
+
+</body>
+
+</html>

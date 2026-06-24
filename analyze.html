@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Sentiment Analyzer</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<canvas id="network"></canvas>
+<div id="emojiContainer"></div>
+
+<nav class="navbar">
+
+<h2 class="logo">SentimentAI</h2>
+
+<ul>
+
+<li><a href="/">Home</a></li>
+<li><a href="/history">History</a></li>
+
+</ul>
+
+</nav>
+
+<section class="analyzer">
+
+<h1>Analyze Movie Review</h1>
+
+<div class="glass-card">
+
+<textarea id="review" placeholder="Write your review..."></textarea>
+
+<button onclick="analyzeReview()">
+Analyze Sentiment
+</button>
+
+</div>
+
+</section>
+
+<script src="/static/script.js"></script>
+
+</body>
+
+</html>

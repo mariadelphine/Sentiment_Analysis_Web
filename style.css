@@ -1,0 +1,367 @@
+body{
+font-family:Segoe UI;
+margin:0;
+color:white;
+
+/* LOCAL BACKGROUND IMAGE */
+
+background-image:url("/static/ai-bg.jpg");
+background-size:cover;
+background-position:center;
+background-repeat:no-repeat;
+background-attachment:fixed;
+}
+
+/* DARK OVERLAY */
+
+body::before{
+content:"";
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(0,0,0,0.6);
+z-index:-1;
+}
+
+/* NAVBAR */
+
+.navbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:25px 60px;
+background:rgba(0,0,0,0.6);
+backdrop-filter:blur(8px);
+}
+
+.logo{
+font-size:26px;
+font-weight:bold;
+color:#00eaff;
+}
+
+.nav-links a{
+margin-left:30px;
+text-decoration:none;
+color:white;
+font-size:18px;
+font-weight:500;
+transition:0.3s;
+}
+
+.nav-links a:hover{
+color:#00eaff;
+}
+
+/* HERO SECTION */
+
+.hero{
+padding:120px 80px;
+max-width:700px;
+}
+
+.hero h1{
+font-size:52px;
+font-weight:700;
+margin-bottom:20px;
+}
+
+.hero p{
+font-size:20px;
+opacity:0.9;
+line-height:1.6;
+}
+
+/* BUTTON */
+
+.btn{
+padding:14px 30px;
+background:#00eaff;
+border:none;
+border-radius:30px;
+font-size:18px;
+font-weight:600;
+margin-top:25px;
+cursor:pointer;
+transition:0.3s;
+}
+
+.btn:hover{
+transform:scale(1.05);
+box-shadow:0 0 15px #00eaff;
+}
+
+/* CARDS SECTION */
+
+.cards{
+display:flex;
+gap:30px;
+padding:40px 80px;
+flex-wrap:wrap;
+}
+
+/* CARD DESIGN */
+
+.card{
+background:rgba(255,255,255,0.08);
+padding:35px;
+border-radius:15px;
+flex:1;
+min-width:220px;
+transition:0.4s;
+cursor:pointer;
+backdrop-filter:blur(6px);
+}
+
+.card h3{
+font-size:24px;
+margin-bottom:10px;
+}
+
+.card p{
+font-size:17px;
+opacity:0.9;
+}
+
+/* HOVER EFFECT */
+
+.card:hover{
+transform:translateY(-10px) scale(1.05);
+background:rgba(0,234,255,0.2);
+box-shadow:0 0 20px #00eaff;
+}
+
+
+/* ---------------- BODY ---------------- */
+body {
+    margin: 0;
+    font-family: Segoe UI;
+    color: white;
+    height: 100vh;
+    overflow: hidden;
+    background: #000814;
+}
+
+/* DARK OVERLAY */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: -1;
+}
+
+/* ---------------- NEURAL NETWORK CANVAS ---------------- */
+#neuralCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+/* ---------------- NAVBAR ---------------- */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 25px 60px;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    position: relative;
+    z-index: 2;
+}
+.logo {
+    font-size: 26px;
+    font-weight: bold;
+    color: #00eaff;
+}
+.nav-links a {
+    margin-left: 30px;
+    text-decoration: none;
+    color: white;
+    font-size: 18px;
+    font-weight: 500;
+    transition: 0.3s;
+}
+.nav-links a:hover {
+    color: #00eaff;
+}
+
+/* ---------------- CARD ---------------- */
+.analyzer-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+    padding-top: 40px;
+    position: relative;
+    z-index: 2;
+    overflow-y: auto; /* scroll if content overflows */
+}
+.analyzer-card {
+    background: rgba(255, 255, 255, 0.08);
+    padding: 30px 20px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0, 234, 255, 0.3);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    overflow-y: auto;
+}
+
+/* ---------------- TEXT AREA ---------------- */
+textarea {
+    width: 100%;
+    height: 180px;
+    border-radius: 12px;
+    border: none;
+    padding: 20px;
+    font-size: 20px;
+    margin-top: 25px;
+    resize: none;
+}
+
+/* ---------------- BUTTON ---------------- */
+.btn {
+    padding: 12px 28px;
+    background: #00eaff;
+    border: none;
+    border-radius: 30px;
+    font-size: 16px;
+    margin-top: 15px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.btn:hover {
+    box-shadow: 0 0 15px #00eaff;
+}
+
+/* ---------------- RESULT ---------------- */
+.result-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 20px;
+}
+.confidence-emoji {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+}
+.graphs-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-top: 25px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.gauge-container,
+.percent-container {
+    width: 45%;
+    max-width: 300px;
+    height: auto;
+    position: relative;
+}
+
+/* ---------------- SENTIMENT TEXT ---------------- */
+.sentiment {
+    font-size: 40px;
+    margin-top: 10px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.8s ease-out;
+}
+.confidence {
+    font-size: 20px;
+    margin-top: 5px;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.8s ease-out;
+}
+.mood-emoji {
+    font-size: 60px;
+    margin-top: 10px;
+    opacity: 0;
+    transform: scale(0);
+    transition: all 0.8s ease-out;
+}
+.result-show {
+    opacity: 1 !important;
+    transform: scale(1.2) !important;
+    animation: blast 0.6s ease-out forwards;
+}
+@keyframes blast {
+    0% { transform: scale(0.5) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.4) rotate(15deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+/* ---------------- GAUGE METER ---------------- */
+.gauge {
+    width: 100%;
+    height: 120px;
+    background: conic-gradient(
+        green 0deg 120deg,
+        yellow 120deg 240deg,
+        red 240deg 360deg
+    );
+    border-radius: 100px 100px 0 0;
+    margin: 15px auto 0 auto;
+    position: relative;
+}
+.gauge-fill {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    height: 80%;
+    background: white;
+    transform-origin: bottom center;
+    transform: rotate(0deg);
+    border-radius: 2px;
+    transition: transform 0.8s ease-in-out;
+}
+
+/* ---------------- RADIAL PERCENT GRAPH ---------------- */
+.percent-canvas {
+    margin-top: 10px;
+}
+
+
+
+
+/* Home page background */
+body.home-page {
+    background-image: url("/static/ai-bg.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    position: relative;
+}
+
+/* Dark overlay for readability */
+body.home-page::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: -1;
+}

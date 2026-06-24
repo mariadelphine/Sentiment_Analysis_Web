@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analysis History — SentimentAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <style>
+
+    /* =============================================
+       RESET & BASE
+    ============================================= */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+        width:100%; height:100%;
+        font-family:'Inter', sans-serif;
+        background:#050c18;
+        color:#fff;
+        overflow-x:hidden;
+    }
+
+    /* =============================================
+       NEURAL BACKGROUND
+    ============================================= */
+    #neuralCanvas {
+        position:fixed;
+        inset:0;
+        z-index:0;
+        pointer-events:none;
+    }
+
+    /* =============================================
+       NAVBAR
+    ============================================= */
+    .navbar {
+        position:fixed;
+        top:0; left:0; right:0;
+        height:64px;
+        z-index:100;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:0 48px;
+        background:rgba(5,12,24,0.92);
+        backdrop-filter:blur(20px);
+        border-bottom:1px solid rgba(0,234,255,0.1);
+    }
+    .logo {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:26px;
+        letter-spacing:5px;
+        color:#00eaff;
+        text-shadow:0 0 20px rgba(0,234,255,0.45);
+    }
+    .nav-links { display:flex; align-items:center; gap:36px; }
+    .nav-links a {
+        text-decoration:none;
+        font-size:12px;
+        font-weight:600;
+        letter-spacing:2.5px;
+        text-transform:uppercase;
+        color:rgba(255,255,255,0.4);
+        transition:color 0.2s;
+        position:relative;
+    }
+    .nav-links a:hover { color:rgba(255,255,255,0.8); }
+    .nav-links a.active { color:#00eaff; }
+    .nav-links a.active::after {
+        content:'';
+        position:absolute;
+        bottom:-22px; left:0; right:0;
+        height:2px;
+        background:#00eaff;
+        box-shadow:0 0 8px #00eaff;
+    }
+
+    /* =============================================
+       PAGE WRAPPER
+    ============================================= */
+    .page {
+        position:relative;
+        z-index:10;
+        padding:100px 60px 60px;
+        min-height:100vh;
+    }
+
+    /* =============================================
+       PAGE HEADER
+    ============================================= */
+    .page-header {
+        display:flex;
+        align-items:flex-end;
+        justify-content:space-between;
+        margin-bottom:40px;
+    }
+
+    .header-left {}
+
+    .header-tag {
+        font-size:11px;
+        font-weight:600;
+        letter-spacing:3px;
+        text-transform:uppercase;
+        color:#00eaff;
+        opacity:0.65;
+        margin-bottom:10px;
+    }
+
+    .page-title {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:68px;
+        letter-spacing:3px;
+        line-height:1;
+        color:#fff;
+    }
+    .page-title span { color:#00eaff; }
+
+    /* Stats summary row */
+    .stats-row {
+        display:flex;
+        gap:16px;
+    }
+    .stat-chip {
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        padding:14px 24px;
+        border-radius:12px;
+        border:1px solid rgba(255,255,255,0.07);
+        background:rgba(255,255,255,0.04);
+        backdrop-filter:blur(10px);
+        min-width:90px;
+    }
+    .stat-chip .s-num {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:38px;
+        line-height:1;
+        letter-spacing:1px;
+    }
+    .stat-chip .s-label {
+        font-size:11px;
+        font-weight:600;
+        letter-spacing:2px;
+        text-transform:uppercase;
+        color:rgba(255,255,255,0.35);
+        margin-top:5px;
+    }
+    .stat-chip.total  .s-num { color:#00eaff; }
+    .stat-chip.pos    .s-num { color:#00ff9c; }
+    .stat-chip.neg    .s-num { color:#ff4d4d; }
+    .stat-chip.neu    .s-num { color:#ffd93b; }
+
+    /* =============================================
+       TABLE CARD
+    ============================================= */
+    .table-card {
+        background:rgba(255,255,255,0.03);
+        border:1px solid rgba(0,234,255,0.1);
+        border-radius:20px;
+        overflow:hidden;
+        backdrop-filter:blur(12px);
+        box-shadow:0 0 60px rgba(0,0,0,0.4),
+                   inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    /* Table */
+    table {
+        width:100%;
+        border-collapse:collapse;
+    }
+
+    /* Header row */
+    thead tr {
+        background:rgba(0,234,255,0.06);
+        border-bottom:1px solid rgba(0,234,255,0.12);
+    }
+    thead th {
+        padding:20px 28px;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:2.5px;
+        text-transform:uppercase;
+        color:rgba(0,234,255,0.7);
+        text-align:left;
+    }
+    thead th:last-child { text-align:right; }
+
+    /* Body rows */
+    tbody tr {
+        border-bottom:1px solid rgba(255,255,255,0.04);
+        transition:background 0.2s;
+        animation:rowIn 0.4s ease both;
+    }
+    tbody tr:last-child { border-bottom:none; }
+    tbody tr:hover { background:rgba(0,234,255,0.04); }
+
+    @keyframes rowIn {
+        from { opacity:0; transform:translateX(-12px); }
+        to   { opacity:1; transform:translateX(0); }
+    }
+
+    /* stagger rows */
+    tbody tr:nth-child(1)  { animation-delay:0.05s; }
+    tbody tr:nth-child(2)  { animation-delay:0.10s; }
+    tbody tr:nth-child(3)  { animation-delay:0.15s; }
+    tbody tr:nth-child(4)  { animation-delay:0.20s; }
+    tbody tr:nth-child(5)  { animation-delay:0.25s; }
+    tbody tr:nth-child(6)  { animation-delay:0.30s; }
+    tbody tr:nth-child(7)  { animation-delay:0.35s; }
+    tbody tr:nth-child(8)  { animation-delay:0.40s; }
+    tbody tr:nth-child(9)  { animation-delay:0.45s; }
+    tbody tr:nth-child(10) { animation-delay:0.50s; }
+
+    tbody td {
+        padding:22px 28px;
+        font-size:18px;
+        font-weight:400;
+        color:rgba(255,255,255,0.75);
+        vertical-align:middle;
+    }
+    tbody td:last-child { text-align:right; }
+
+    /* Review text cell */
+    .td-review {
+        font-size:18px;
+        font-weight:500;
+        color:rgba(255,255,255,0.88);
+        max-width:400px;
+    }
+    .review-text {
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        max-width:380px;
+    }
+
+    /* Sentiment badge */
+    .badge {
+        display:inline-flex;
+        align-items:center;
+        gap:7px;
+        padding:7px 18px;
+        border-radius:50px;
+        font-size:14px;
+        font-weight:700;
+        letter-spacing:1.5px;
+        text-transform:uppercase;
+    }
+    .badge-pos {
+        background:rgba(0,255,156,0.1);
+        border:1px solid rgba(0,255,156,0.35);
+        color:#00ff9c;
+    }
+    .badge-neg {
+        background:rgba(255,77,77,0.1);
+        border:1px solid rgba(255,77,77,0.35);
+        color:#ff4d4d;
+    }
+    .badge-neu {
+        background:rgba(255,217,59,0.1);
+        border:1px solid rgba(255,217,59,0.35);
+        color:#ffd93b;
+    }
+    .badge-dot {
+        width:6px; height:6px;
+        border-radius:50%;
+    }
+    .badge-pos .badge-dot { background:#00ff9c; box-shadow:0 0 6px #00ff9c; }
+    .badge-neg .badge-dot { background:#ff4d4d; box-shadow:0 0 6px #ff4d4d; }
+    .badge-neu .badge-dot { background:#ffd93b; box-shadow:0 0 6px #ffd93b; }
+
+    /* Confidence bar */
+    .conf-cell { min-width:200px; }
+    .conf-bar-wrap {
+        display:flex;
+        align-items:center;
+        gap:12px;
+    }
+    .conf-track {
+        flex:1;
+        height:8px;
+        background:rgba(255,255,255,0.07);
+        border-radius:99px;
+        overflow:hidden;
+    }
+    .conf-fill {
+        height:100%;
+        border-radius:99px;
+        transition:width 1s cubic-bezier(0.22,1,0.36,1);
+    }
+    .conf-num {
+        font-size:17px;
+        font-weight:700;
+        min-width:44px;
+        text-align:right;
+    }
+
+    /* Time cell */
+    .td-time {
+        font-size:16px;
+        color:rgba(255,255,255,0.35);
+        white-space:nowrap;
+        font-variant-numeric:tabular-nums;
+    }
+
+    /* Empty state */
+    .empty-state {
+        padding:80px 40px;
+        text-align:center;
+    }
+    .empty-icon { font-size:56px; margin-bottom:16px; opacity:0.3; }
+    .empty-text {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:24px;
+        letter-spacing:4px;
+        color:rgba(255,255,255,0.25);
+    }
+
+    </style>
+</head>
+<body>
+
+<canvas id="neuralCanvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="logo">SentimentAI</div>
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyzer">Analyzer</a>
+        <a href="/history" class="active">History</a>
+        <a href="/analytics">Analytics</a>
+    </div>
+</nav>
+
+<!-- PAGE -->
+<div class="page">
+
+    <!-- HEADER -->
+    <div class="page-header">
+
+        <div class="header-left">
+            <div class="header-tag">📋 All Analyses</div>
+            <div class="page-title">ANALYSIS <span>HISTORY</span></div>
+        </div>
+
+        <!-- Stats chips -->
+        <div class="stats-row">
+            <div class="stat-chip total">
+                <span class="s-num">{{ history|length }}</span>
+                <span class="s-label">Total</span>
+            </div>
+            <div class="stat-chip pos">
+                <span class="s-num">{{ history|selectattr('result','equalto','Positive')|list|length }}</span>
+                <span class="s-label">Positive</span>
+            </div>
+            <div class="stat-chip neg">
+                <span class="s-num">{{ history|selectattr('result','equalto','Negative')|list|length }}</span>
+                <span class="s-label">Negative</span>
+            </div>
+            <div class="stat-chip neu">
+                <span class="s-num">{{ history|selectattr('result','equalto','Neutral')|list|length }}</span>
+                <span class="s-label">Neutral</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Review</th>
+                    <th>Sentiment</th>
+                    <th>Confidence</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if history %}
+                    {% for h in history %}
+                    <tr>
+                        <!-- Row number -->
+                        <td style="color:rgba(255,255,255,0.2);font-size:16px;font-weight:600;width:52px;">
+                            {{ loop.index }}
+                        </td>
+
+                        <!-- Review -->
+                        <td class="td-review">
+                            <div class="review-text" title="{{ h.text }}">{{ h.text }}</div>
+                        </td>
+
+                        <!-- Sentiment badge -->
+                        <td>
+                            {% if h.result == 'Positive' %}
+                                <span class="badge badge-pos"><span class="badge-dot"></span>Positive</span>
+                            {% elif h.result == 'Negative' %}
+                                <span class="badge badge-neg"><span class="badge-dot"></span>Negative</span>
+                            {% else %}
+                                <span class="badge badge-neu"><span class="badge-dot"></span>Neutral</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Confidence bar -->
+                        <td class="conf-cell">
+                            <div class="conf-bar-wrap">
+                                <div class="conf-track">
+                                    <div class="conf-fill"
+                                        style="width:{{ h.confidence }}%;
+                                               background:{% if h.result == 'Positive' %}#00ff9c{% elif h.result == 'Negative' %}#ff4d4d{% else %}#ffd93b{% endif %};">
+                                    </div>
+                                </div>
+                                <span class="conf-num"
+                                    style="color:{% if h.result == 'Positive' %}#00ff9c{% elif h.result == 'Negative' %}#ff4d4d{% else %}#ffd93b{% endif %};">
+                                    {{ h.confidence }}%
+                                </span>
+                            </div>
+                        </td>
+
+                        <!-- Time -->
+                        <td class="td-time">{{ h.time }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <div class="empty-icon">🎬</div>
+                                <div class="empty-text">No analyses yet — try the analyzer!</div>
+                            </div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- NEURAL BG -->
+<script>
+(function(){
+    const cv  = document.getElementById('neuralCanvas');
+    const ctx = cv.getContext('2d');
+    function resize(){ cv.width=window.innerWidth; cv.height=window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const pts = Array.from({length:55}, ()=>({
+        x:Math.random()*cv.width, y:Math.random()*cv.height,
+        vx:(Math.random()-0.5)*0.32, vy:(Math.random()-0.5)*0.32
+    }));
+
+    function frame(){
+        ctx.clearRect(0,0,cv.width,cv.height);
+        pts.forEach((a,i)=>{
+            a.x+=a.vx; a.y+=a.vy;
+            if(a.x<0||a.x>cv.width)  a.vx*=-1;
+            if(a.y<0||a.y>cv.height) a.vy*=-1;
+            for(let j=i+1;j<pts.length;j++){
+                const b=pts[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+                if(d<120){
+                    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+                    ctx.strokeStyle=`rgba(0,234,255,${(1-d/120)*0.18})`;
+                    ctx.lineWidth=1; ctx.stroke();
+                }
+            }
+            ctx.beginPath(); ctx.arc(a.x,a.y,1.8,0,Math.PI*2);
+            ctx.fillStyle='rgba(0,234,255,0.45)'; ctx.fill();
+        });
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
+</script>
+
+</body>
+</html>

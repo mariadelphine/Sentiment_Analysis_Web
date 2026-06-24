@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics — SentimentAI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    html, body {
+        width:100%; height:100%;
+        overflow:hidden;
+        font-family:'Inter', sans-serif;
+        background:#050c18;
+        color:#fff;
+    }
+
+    /* NEURAL BG */
+    #neuralCanvas { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+    /* NAVBAR */
+    .navbar {
+        position:fixed; top:0; left:0; right:0; height:64px; z-index:100;
+        display:flex; align-items:center; justify-content:space-between;
+        padding:0 48px;
+        background:rgba(5,12,24,0.92);
+        backdrop-filter:blur(20px);
+        border-bottom:1px solid rgba(0,234,255,0.1);
+    }
+    .logo {
+        font-family:'Bebas Neue', sans-serif; font-size:26px;
+        letter-spacing:5px; color:#00eaff;
+        text-shadow:0 0 20px rgba(0,234,255,0.45);
+    }
+    .nav-links { display:flex; align-items:center; gap:36px; }
+    .nav-links a {
+        text-decoration:none; font-size:12px; font-weight:600;
+        letter-spacing:2.5px; text-transform:uppercase;
+        color:rgba(255,255,255,0.4); transition:color 0.2s; position:relative;
+    }
+    .nav-links a:hover { color:rgba(255,255,255,0.8); }
+    .nav-links a.active { color:#00eaff; }
+    .nav-links a.active::after {
+        content:''; position:absolute; bottom:-22px; left:0; right:0;
+        height:2px; background:#00eaff; box-shadow:0 0 8px #00eaff;
+    }
+
+    /* =============================================
+       FULL SCREEN LAYOUT
+    ============================================= */
+    .screen {
+        position:fixed;
+        top:64px; bottom:0; left:0; right:0;
+        z-index:10;
+        display:grid;
+        grid-template-rows:auto 1fr;
+        grid-template-columns:1fr;
+        padding:28px 40px 28px;
+        gap:24px;
+    }
+
+    /* ---- TOP ROW: title + 4 KPI chips ---- */
+    .top-row {
+        display:grid;
+        grid-template-columns:auto 1fr 1fr 1fr 1fr;
+        align-items:center;
+        gap:20px;
+    }
+
+    .title-block {}
+    .header-tag {
+        font-size:10px; font-weight:600; letter-spacing:3px;
+        text-transform:uppercase; color:#00eaff; opacity:0.6;
+        margin-bottom:6px;
+    }
+    .page-title {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:44px; letter-spacing:3px; line-height:1;
+    }
+    .page-title span { color:#00eaff; }
+
+    /* KPI chip */
+    .kpi {
+        background:rgba(255,255,255,0.04);
+        border-radius:14px;
+        padding:18px 22px;
+        display:flex; flex-direction:column; gap:4px;
+        border:1px solid rgba(255,255,255,0.06);
+        transition:transform 0.2s, box-shadow 0.2s;
+        animation:fadeUp 0.5s ease both;
+    }
+    .kpi:hover { transform:translateY(-3px); box-shadow:0 10px 30px rgba(0,0,0,0.4); }
+    .kpi:nth-child(2){ animation-delay:0.05s; border-color:rgba(0,234,255,0.2); }
+    .kpi:nth-child(3){ animation-delay:0.10s; border-color:rgba(0,255,156,0.2); }
+    .kpi:nth-child(4){ animation-delay:0.15s; border-color:rgba(255,77,77,0.2); }
+    .kpi:nth-child(5){ animation-delay:0.20s; border-color:rgba(255,217,59,0.2); }
+
+    @keyframes fadeUp {
+        from { opacity:0; transform:translateY(16px); }
+        to   { opacity:1; transform:translateY(0); }
+    }
+
+    .kpi-top { display:flex; align-items:center; justify-content:space-between; }
+    .kpi-icon { font-size:20px; }
+    .kpi-pct {
+        font-size:11px; font-weight:600; letter-spacing:1px;
+        color:rgba(255,255,255,0.25);
+    }
+    .kpi-num {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:44px; line-height:1; letter-spacing:1px;
+    }
+    .kpi:nth-child(2) .kpi-num { color:#00eaff; }
+    .kpi:nth-child(3) .kpi-num { color:#00ff9c; }
+    .kpi:nth-child(4) .kpi-num { color:#ff4d4d; }
+    .kpi:nth-child(5) .kpi-num { color:#ffd93b; }
+    .kpi-label {
+        font-size:11px; font-weight:700; letter-spacing:2px;
+        text-transform:uppercase; color:rgba(255,255,255,0.3);
+    }
+
+    /* ---- BOTTOM ROW: 3 big charts ---- */
+    .charts-row {
+        display:grid;
+        grid-template-columns:1fr 1.4fr 1fr;
+        gap:20px;
+        min-height:0; /* allow shrink */
+    }
+
+    .chart-card {
+        background:rgba(255,255,255,0.03);
+        border:1px solid rgba(0,234,255,0.08);
+        border-radius:18px;
+        padding:24px 26px;
+        backdrop-filter:blur(12px);
+        display:flex; flex-direction:column; gap:16px;
+        min-height:0;
+        animation:fadeUp 0.5s ease both;
+        overflow:hidden;
+    }
+    .chart-card:nth-child(1){ animation-delay:0.25s; }
+    .chart-card:nth-child(2){ animation-delay:0.30s; }
+    .chart-card:nth-child(3){ animation-delay:0.35s; }
+
+    .card-header {
+        display:flex; align-items:center;
+        justify-content:space-between;
+        flex-shrink:0;
+    }
+    .card-title {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:22px; letter-spacing:2px;
+        color:rgba(255,255,255,0.9);
+    }
+    .card-pill {
+        font-size:10px; font-weight:700; letter-spacing:1.5px;
+        text-transform:uppercase; padding:4px 12px;
+        border-radius:50px;
+        background:rgba(0,234,255,0.08);
+        border:1px solid rgba(0,234,255,0.18);
+        color:#00eaff;
+    }
+
+    /* Chart canvas wrapper — fills remaining card height */
+    .canvas-wrap {
+        flex:1; min-height:0;
+        position:relative;
+        display:flex; align-items:center; justify-content:center;
+    }
+    .canvas-wrap canvas { max-height:100%; }
+
+    /* Donut center */
+    .donut-center {
+        position:absolute; top:50%; left:50%;
+        transform:translate(-50%,-50%);
+        text-align:center; pointer-events:none;
+    }
+    .donut-center .dc-num {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:42px; color:#fff; line-height:1;
+    }
+    .donut-center .dc-sub {
+        font-size:10px; letter-spacing:2px; text-transform:uppercase;
+        color:rgba(255,255,255,0.3);
+    }
+
+    /* Legend */
+    .legend {
+        display:flex; justify-content:center; gap:24px; flex-shrink:0;
+    }
+    .leg-item {
+        display:flex; align-items:center; gap:7px;
+        font-size:12px; font-weight:600; letter-spacing:1px;
+        color:rgba(255,255,255,0.5);
+    }
+    .leg-dot { width:9px; height:9px; border-radius:50%; }
+
+    /* Breakdown bars (middle card extra section) */
+    .breakdown { display:flex; flex-direction:column; gap:12px; flex-shrink:0; }
+    .bk-row { display:flex; flex-direction:column; gap:5px; }
+    .bk-top { display:flex; justify-content:space-between; align-items:center; }
+    .bk-name { font-size:13px; font-weight:600; letter-spacing:1px; }
+    .bk-val  { font-family:'Bebas Neue', sans-serif; font-size:18px; letter-spacing:1px; }
+    .bk-track { width:100%; height:7px; background:rgba(255,255,255,0.06); border-radius:99px; overflow:hidden; }
+    .bk-fill  { height:100%; border-radius:99px; }
+
+    /* Verdict badge */
+    .verdict {
+        flex-shrink:0;
+        text-align:center;
+        padding:12px 0 4px;
+        border-top:1px solid rgba(255,255,255,0.05);
+    }
+    .verdict-label {
+        font-size:10px; letter-spacing:3px; text-transform:uppercase;
+        color:rgba(255,255,255,0.25); margin-bottom:4px;
+    }
+    .verdict-val {
+        font-family:'Bebas Neue', sans-serif;
+        font-size:34px; letter-spacing:3px;
+    }
+
+    </style>
+</head>
+<body>
+
+<canvas id="neuralCanvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+    <div class="logo">SentimentAI</div>
+    <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyzer">Analyzer</a>
+        <a href="/history">History</a>
+        <a href="/analytics" class="active">Analytics</a>
+    </div>
+</nav>
+
+{% set total = pos + neg + neu %}
+
+<div class="screen">
+
+    <!-- ===== TOP ROW: title + KPIs ===== -->
+    <div class="top-row">
+
+        <div class="title-block">
+            <div class="header-tag">📊 Overview</div>
+            <div class="page-title">SENTIMENT<br><span>ANALYTICS</span></div>
+        </div>
+
+        <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">📋</span><span class="kpi-pct">All</span></div>
+            <div class="kpi-num">{{ total }}</div>
+            <div class="kpi-label">Total</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">😊</span>
+                <span class="kpi-pct">{% if total>0 %}{{ "%.0f"|format(pos/total*100) }}%{% endif %}</span>
+            </div>
+            <div class="kpi-num">{{ pos }}</div>
+            <div class="kpi-label">Positive</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">😡</span>
+                <span class="kpi-pct">{% if total>0 %}{{ "%.0f"|format(neg/total*100) }}%{% endif %}</span>
+            </div>
+            <div class="kpi-num">{{ neg }}</div>
+            <div class="kpi-label">Negative</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-top"><span class="kpi-icon">😐</span>
+                <span class="kpi-pct">{% if total>0 %}{{ "%.0f"|format(neu/total*100) }}%{% endif %}</span>
+            </div>
+            <div class="kpi-num">{{ neu }}</div>
+            <div class="kpi-label">Neutral</div>
+        </div>
+
+    </div>
+
+    <!-- ===== CHARTS ROW ===== -->
+    <div class="charts-row">
+
+        <!-- CHART 1: Donut -->
+        <div class="chart-card">
+            <div class="card-header">
+                <div class="card-title">Distribution</div>
+                <span class="card-pill">Donut</span>
+            </div>
+            <div class="canvas-wrap">
+                <canvas id="donutChart"></canvas>
+                <div class="donut-center">
+                    <div class="dc-num">{{ total }}</div>
+                    <div class="dc-sub">Reviews</div>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="leg-item"><span class="leg-dot" style="background:#00ff9c;box-shadow:0 0 5px #00ff9c;"></span>Positive</div>
+                <div class="leg-item"><span class="leg-dot" style="background:#ff4d4d;box-shadow:0 0 5px #ff4d4d;"></span>Negative</div>
+                <div class="leg-item"><span class="leg-dot" style="background:#ffd93b;box-shadow:0 0 5px #ffd93b;"></span>Neutral</div>
+            </div>
+        </div>
+
+        <!-- CHART 2: Bar + Breakdown -->
+        <div class="chart-card">
+            <div class="card-header">
+                <div class="card-title">Comparison</div>
+                <span class="card-pill">Bar Chart</span>
+            </div>
+            <div class="canvas-wrap">
+                <canvas id="barChart"></canvas>
+            </div>
+            <!-- Breakdown bars -->
+            <div class="breakdown">
+                <div class="bk-row">
+                    <div class="bk-top">
+                        <span class="bk-name" style="color:#00ff9c;">Positive</span>
+                        <span class="bk-val"  style="color:#00ff9c;">{{ pos }}</span>
+                    </div>
+                    <div class="bk-track"><div class="bk-fill" style="width:{% if total>0 %}{{ (pos/total*100)|round|int }}{% else %}0{% endif %}%;background:#00ff9c;box-shadow:0 0 8px #00ff9c;"></div></div>
+                </div>
+                <div class="bk-row">
+                    <div class="bk-top">
+                        <span class="bk-name" style="color:#ff4d4d;">Negative</span>
+                        <span class="bk-val"  style="color:#ff4d4d;">{{ neg }}</span>
+                    </div>
+                    <div class="bk-track"><div class="bk-fill" style="width:{% if total>0 %}{{ (neg/total*100)|round|int }}{% else %}0{% endif %}%;background:#ff4d4d;box-shadow:0 0 8px #ff4d4d;"></div></div>
+                </div>
+                <div class="bk-row">
+                    <div class="bk-top">
+                        <span class="bk-name" style="color:#ffd93b;">Neutral</span>
+                        <span class="bk-val"  style="color:#ffd93b;">{{ neu }}</span>
+                    </div>
+                    <div class="bk-track"><div class="bk-fill" style="width:{% if total>0 %}{{ (neu/total*100)|round|int }}{% else %}0{% endif %}%;background:#ffd93b;box-shadow:0 0 8px #ffd93b;"></div></div>
+                </div>
+            </div>
+            <!-- Verdict -->
+            <div class="verdict">
+                <div class="verdict-label">Overall Verdict</div>
+                <div class="verdict-val" style="color:
+                    {% if total>0 and pos>=neg and pos>=neu %}#00ff9c
+                    {% elif total>0 and neg>pos and neg>=neu %}#ff4d4d
+                    {% else %}#ffd93b{% endif %};">
+                    {% if total>0 %}
+                        {% if pos>=neg and pos>=neu %}😊 POSITIVE
+                        {% elif neg>pos and neg>=neu %}😡 NEGATIVE
+                        {% else %}😐 NEUTRAL{% endif %}
+                    {% else %}NO DATA{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- CHART 3: Radar -->
+        <div class="chart-card">
+            <div class="card-header">
+                <div class="card-title">Radar View</div>
+                <span class="card-pill">Radar</span>
+            </div>
+            <div class="canvas-wrap">
+                <canvas id="radarChart"></canvas>
+            </div>
+            <div class="legend">
+                <div class="leg-item"><span class="leg-dot" style="background:#00ff9c;"></span>Positive</div>
+                <div class="leg-item"><span class="leg-dot" style="background:#ff4d4d;"></span>Negative</div>
+                <div class="leg-item"><span class="leg-dot" style="background:#ffd93b;"></span>Neutral</div>
+            </div>
+        </div>
+
+    </div><!-- /charts-row -->
+
+</div><!-- /screen -->
+
+<!-- CHARTS JS -->
+<script>
+const POS = {{ pos }}, NEG = {{ neg }}, NEU = {{ neu }};
+const TOTAL = POS + NEG + NEU;
+
+Chart.defaults.color = 'rgba(255,255,255,0.4)';
+Chart.defaults.font.family = 'Inter';
+
+const C = {
+    pos:'#00ff9c', neg:'#ff4d4d', neu:'#ffd93b',
+    posA:'rgba(0,255,156,0.12)', negA:'rgba(255,77,77,0.12)', neuA:'rgba(255,217,59,0.12)'
+};
+
+// DONUT
+new Chart(document.getElementById('donutChart'), {
+    type:'doughnut',
+    data:{
+        labels:['Positive','Negative','Neutral'],
+        datasets:[{
+            data:[POS,NEG,NEU],
+            backgroundColor:[C.posA,C.negA,C.neuA],
+            borderColor:[C.pos,C.neg,C.neu],
+            borderWidth:2.5,
+            hoverOffset:10,
+        }]
+    },
+    options:{
+        cutout:'72%',
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} reviews`}}
+        },
+        animation:{animateRotate:true, duration:1400, easing:'easeOutQuart'}
+    }
+});
+
+// BAR
+new Chart(document.getElementById('barChart'), {
+    type:'bar',
+    data:{
+        labels:['😊 Positive','😡 Negative','😐 Neutral'],
+        datasets:[{
+            data:[POS,NEG,NEU],
+            backgroundColor:[C.posA,C.negA,C.neuA],
+            borderColor:[C.pos,C.neg,C.neu],
+            borderWidth:2,
+            borderRadius:12,
+            borderSkipped:false,
+        }]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{
+            x:{
+                grid:{color:'rgba(255,255,255,0.04)'},
+                ticks:{font:{size:13,weight:'600'}}
+            },
+            y:{
+                grid:{color:'rgba(255,255,255,0.04)'},
+                ticks:{stepSize:1, font:{size:13}},
+                beginAtZero:true
+            }
+        },
+        animation:{duration:1200, easing:'easeOutQuart'}
+    }
+});
+
+// RADAR
+new Chart(document.getElementById('radarChart'), {
+    type:'radar',
+    data:{
+        labels:['Count','Share %','Weight','Impact','Score'],
+        datasets:[
+            {
+                label:'Positive',
+                data:[POS, TOTAL>0?POS/TOTAL*10:0, POS*1.2, POS*0.8, POS*1.1],
+                backgroundColor:C.posA, borderColor:C.pos,
+                borderWidth:2, pointBackgroundColor:C.pos, pointRadius:5
+            },
+            {
+                label:'Negative',
+                data:[NEG, TOTAL>0?NEG/TOTAL*10:0, NEG*1.2, NEG*0.8, NEG*1.1],
+                backgroundColor:C.negA, borderColor:C.neg,
+                borderWidth:2, pointBackgroundColor:C.neg, pointRadius:5
+            },
+            {
+                label:'Neutral',
+                data:[NEU, TOTAL>0?NEU/TOTAL*10:0, NEU*1.2, NEU*0.8, NEU*1.1],
+                backgroundColor:C.neuA, borderColor:C.neu,
+                borderWidth:2, pointBackgroundColor:C.neu, pointRadius:5
+            }
+        ]
+    },
+    options:{
+        responsive:true, maintainAspectRatio:true,
+        scales:{r:{
+            grid:{color:'rgba(255,255,255,0.06)'},
+            angleLines:{color:'rgba(255,255,255,0.06)'},
+            ticks:{display:false},
+            pointLabels:{font:{size:12, weight:'600'}, color:'rgba(255,255,255,0.5)'}
+        }},
+        plugins:{legend:{display:false}},
+        animation:{duration:1400}
+    }
+});
+</script>
+
+<!-- NEURAL BG -->
+<script>
+(function(){
+    const cv=document.getElementById('neuralCanvas'), ctx=cv.getContext('2d');
+    function resize(){ cv.width=window.innerWidth; cv.height=window.innerHeight; }
+    resize(); window.addEventListener('resize',resize);
+    const pts=Array.from({length:50},()=>({
+        x:Math.random()*cv.width, y:Math.random()*cv.height,
+        vx:(Math.random()-0.5)*0.28, vy:(Math.random()-0.5)*0.28
+    }));
+    function frame(){
+        ctx.clearRect(0,0,cv.width,cv.height);
+        pts.forEach((a,i)=>{
+            a.x+=a.vx; a.y+=a.vy;
+            if(a.x<0||a.x>cv.width) a.vx*=-1;
+            if(a.y<0||a.y>cv.height) a.vy*=-1;
+            for(let j=i+1;j<pts.length;j++){
+                const b=pts[j], d=Math.hypot(a.x-b.x,a.y-b.y);
+                if(d<110){ ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+                    ctx.strokeStyle=`rgba(0,234,255,${(1-d/110)*0.14})`; ctx.lineWidth=1; ctx.stroke(); }
+            }
+            ctx.beginPath(); ctx.arc(a.x,a.y,1.5,0,Math.PI*2);
+            ctx.fillStyle='rgba(0,234,255,0.3)'; ctx.fill();
+        });
+        requestAnimationFrame(frame);
+    }
+    frame();
+})();
+</script>
+
+</body>
+</html>
